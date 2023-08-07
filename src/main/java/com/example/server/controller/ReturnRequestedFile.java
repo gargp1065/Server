@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.File;
@@ -23,10 +25,12 @@ import java.nio.file.Paths;
 public class ReturnRequestedFile {
 
     private final AppConfig appConfig;
-
+    private static final Logger log = LogManager.getLogger(ReturnRequestedFile.class);
+    private final ConfigValidation configValidation;
     @Autowired
-    public ReturnRequestedFile(AppConfig appConfig) {
+    public ReturnRequestedFile(final AppConfig appConfig) {
         this.appConfig = appConfig;
+        this.configValidation = new ConfigValidation();
     }
 
     @GetMapping("/download")
@@ -34,41 +38,44 @@ public class ReturnRequestedFile {
                                                          String forwardedForHeader, HttpServletRequest request)
             throws IOException {
 
-        String filePath = appConfig.getPath();
-        String fileName = appConfig.getFileName();
-        System.out.println("FilePath address is: " + filePath);
-        System.out.println("FileName is: " + fileName);
+        String fileName = "";
+        String filePath = "";
 
-        if(!ConfigValidation.validateFilePath(filePath)) {
-            return ResponseEntity.notFound().build();
+        try {
+             filePath = appConfig.getPath();
+             fileName = appConfig.getFileName();
+        } catch (Exception exception) {
+            String errMessage = exception.getMessage();
+            log.error(exception);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errMessage.getBytes(StandardCharsets.UTF_8));
+        }
+        final String configValidationResult = configValidation.validator(filePath, fileName);
+        if(!configValidationResult.equals("")) {
+            log.error(configValidationResult);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(configValidationResult.getBytes(StandardCharsets.UTF_8));
         }
 
-        if(!ConfigValidation.validateFileName(fileName)) {
-            return ResponseEntity.notFound().build();
-        }
+        final File file = new File(Paths.get(filePath + fileName).toString());
 
-        File file = new File(Paths.get(filePath + fileName).toString());
-
-        // file doesn't exists on the server
+        // file doesn't exist on the server
         if(!file.exists()) {
-            return ResponseEntity.notFound().build();
+            String errMessage = "File with name " + fileName + " on the path "+ filePath+ " doesn't exist.";
+            log.error(errMessage);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errMessage.getBytes(StandardCharsets.UTF_8));
         }
 
-        // the resource is not a file.
-        if (!file.isFile()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
-
-        byte[] fileContent = Files.readAllBytes(Path.of(filePath + fileName));
-        String ipAddress;
+        log.info("File Path is " +  filePath);
+        log.info("File Name is " + fileName);
+        final byte[] fileContent = Files.readAllBytes(Path.of(filePath + fileName));
+        final String ipAddress;
         if(forwardedForHeader != null && !forwardedForHeader.isEmpty()) {
             ipAddress = forwardedForHeader.split(",")[0].trim();
         }
         else {
             ipAddress = request.getRemoteAddr();
         }
-        System.out.println("Ip address is: " + ipAddress);
-        HttpHeaders headers = new HttpHeaders();
+        log.info("Ip address is = "+ ipAddress);
+        final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("application/json"));
         headers.setContentLength(fileContent.length);
         headers.setContentDispositionFormData("attachment", fileName);

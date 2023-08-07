@@ -1,6 +1,7 @@
 package com.example.server.controllerTest;
 
 import com.example.server.config.AppConfig;
+import com.example.server.config.ConfigValidation;
 import com.example.server.controller.ReturnRequestedFile;
 import lombok.extern.log4j.Log4j2;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,9 @@ public class ReturnRequestedFileTest {
 
     @Mock
     private AppConfig appConfig;
+
+    @Mock
+    private ConfigValidation configValidation;
 
     @BeforeEach
     public void setup() {
