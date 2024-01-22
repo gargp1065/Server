@@ -1,5 +1,6 @@
 package com.example.server.config;
 
+import com.example.server.alert.Alert;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
@@ -10,9 +11,9 @@ import java.util.regex.Pattern;
 @Component
 public class ConfigValidation {
 
-    private static final String FILE_NAME_REGEX = "([a-zA-Z0-9\\s_\\-\\(\\)])+[.]([a-zA-Z0-9])+$";
+    private static final String FILE_NAME_REGEX = "([a-zA-Z0-9\\s_\\-\\(\\)])+[.]([a-zA-Z0-9-_])+$";
     private static final Pattern patternFileNameRegex = Pattern.compile(FILE_NAME_REGEX);
-
+    private static final Alert alert = new Alert();
     /**
      * Validate the filePath from the config.
      * @param filePath: File path where the file is located.
@@ -38,11 +39,12 @@ public class ConfigValidation {
 
     public String validator(final String filePath, final String fileName) {
         if(!validateFilePath(filePath)) {
+            alert.raiseAnAlert("alert2002", filePath, "", 0);
             return "File Path given is invalid on the server.";
         }
-        if(!validateFileName(fileName)) {
-            return "File Name given is invalid on the server.";
-        }
+//        if(!validateFileName(fileName)) {
+//            return "File Name given is invalid on the server.";
+//        }
         return "";
     }
 
